@@ -414,6 +414,27 @@ static int mysql_drv_real_connect(db_mysql_conn_t *db_mysql_con)
     mysql_ssl_set(con, args.ssl_key, args.ssl_cert, args.ssl_ca, NULL,
                   args.ssl_cipher);
   }
+  else
+  {
+    /*
+      FastSQL does not implement TLS, and the bundled mariadb-connector-c
+      enforces TLS by default, which makes plaintext connections fail with
+      "SSL is required, but the server does not support it". When --mysql-ssl
+      is off, explicitly disable TLS enforcement so the connector negotiates a
+      plaintext connection.
+
+      With mariadb-connector-c 3.4, disabling server-certificate verification
+      lets the connector fall back to a plaintext connection when the server
+      advertises no SSL support (MYSQL_OPT_SSL_ENFORCE alone is not enough).
+      These are enum values (not preprocessor macros), so they cannot be
+      guarded with #ifdef; mariadb-connector-c always provides them.
+    */
+    my_bool ssl_off = 0;
+
+    DEBUG("mysql_options(%p, %s, %u)", con, "MYSQL_OPT_SSL_VERIFY_SERVER_CERT", 0);
+    mysql_options(con, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, &ssl_off);
+    mysql_options(con, MYSQL_OPT_SSL_ENFORCE, &ssl_off);
+  }
 
   if (args.use_compression)
   {
