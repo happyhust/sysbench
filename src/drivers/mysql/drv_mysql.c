@@ -426,14 +426,22 @@ static int mysql_drv_real_connect(db_mysql_conn_t *db_mysql_con)
       With mariadb-connector-c 3.4, disabling server-certificate verification
       lets the connector fall back to a plaintext connection when the server
       advertises no SSL support (MYSQL_OPT_SSL_ENFORCE alone is not enough).
-      These are enum values (not preprocessor macros), so they cannot be
-      guarded with #ifdef; mariadb-connector-c always provides them.
+      These options are enum values, so build.sh detects them by compiling
+      against the selected client headers and defines the HAVE_* macros below.
     */
+#if defined(HAVE_MYSQL_OPT_SSL_VERIFY_SERVER_CERT) || \
+    defined(HAVE_MYSQL_OPT_SSL_ENFORCE)
     my_bool ssl_off = 0;
 
+#ifdef HAVE_MYSQL_OPT_SSL_VERIFY_SERVER_CERT
     DEBUG("mysql_options(%p, %s, %u)", con, "MYSQL_OPT_SSL_VERIFY_SERVER_CERT", 0);
     mysql_options(con, MYSQL_OPT_SSL_VERIFY_SERVER_CERT, &ssl_off);
+#endif
+#ifdef HAVE_MYSQL_OPT_SSL_ENFORCE
+    DEBUG("mysql_options(%p, %s, %u)", con, "MYSQL_OPT_SSL_ENFORCE", 0);
     mysql_options(con, MYSQL_OPT_SSL_ENFORCE, &ssl_off);
+#endif
+#endif
   }
 
   if (args.use_compression)
